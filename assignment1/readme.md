@@ -1,7 +1,8 @@
-作业顺序： 
-knn.ipynb 
-softmax.ipynb 
-two_layer_net.ipynb 
-features.ipynb 
-FullyConnectedNets.ipynb
+Sequence for assignment： 
+
+1. knn.ipynb 
+2. softmax.ipynb 
+3. two_layer_net.ipynb 
+4. features.ipynb 
+5. FullyConnectedNets.ipynb
 

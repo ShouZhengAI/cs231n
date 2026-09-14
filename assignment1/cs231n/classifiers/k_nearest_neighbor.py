@@ -1,11 +1,10 @@
 from builtins import range
-from builtins import object
+
 import numpy as np
-from past.builtins import xrange
 
 
-class KNearestNeighbor(object):
-    """ a kNN classifier with L2 distance """
+class KNearestNeighbor:
+    """a kNN classifier with L2 distance"""
 
     def __init__(self):
         pass
@@ -75,7 +74,10 @@ class KNearestNeighbor(object):
                 # training point, and store the result in dists[i, j]. You should   #
                 # not use a loop over dimension, nor use np.linalg.norm().          #
                 #####################################################################
-                pass
+                sub_arr = X[i] - self.X_train[j]
+
+                # according to the define of l2 distance
+                dists[i, j] = np.sqrt(np.sum(np.square(sub_arr)))
         return dists
 
     def compute_distances_one_loop(self, X):
@@ -95,7 +97,10 @@ class KNearestNeighbor(object):
             # points, and store the result in dists[i, :].                        #
             # Do not use np.linalg.norm().                                        #
             #######################################################################
-            pass
+            sub_arr = X[i] - self.X_train
+
+            # according to the define of l2 distance
+            dists[i, :] = np.sqrt(np.sum(np.square(sub_arr), axis=1))
         return dists
 
     def compute_distances_no_loops(self, X):
@@ -121,6 +126,16 @@ class KNearestNeighbor(object):
         # HINT: Try to formulate the l2 distance using matrix multiplication    #
         #       and two broadcast sums.                                         #
         #########################################################################
+
+        # in math, ||x-y||^2 = x^2+y^2 -2*x*y
+        # attention! @ is the normal mulplication, and * is mulplication elment-wise
+        arr = (
+            np.sum(np.square(X), axis=1, keepdims=True)
+            + np.sum(np.square(self.X_train), axis=1)
+            - 2 * X @ self.X_train.T
+        )
+
+        dists = np.sqrt(arr)
 
         return dists
 
@@ -151,6 +166,10 @@ class KNearestNeighbor(object):
             # Hint: Look up the function numpy.argsort.                             #
             #########################################################################
 
+            index_k = np.argsort(dists[i])[:k]
+
+            # index k nearest neighbors to use [:k]
+            closest_y = self.y_train[index_k]
 
             #########################################################################
             # TODO:                                                                 #
@@ -159,6 +178,5 @@ class KNearestNeighbor(object):
             # Store this label in y_pred[i]. Break ties by choosing the smaller     #
             # label.                                                                #
             #########################################################################
-
-
+            y_pred[i] = np.argmax(np.bincount(closest_y))
         return y_pred
