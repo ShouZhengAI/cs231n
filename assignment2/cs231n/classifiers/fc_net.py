@@ -1,12 +1,12 @@
 from builtins import range
-from builtins import object
+
 import numpy as np
 
-from ..layers import *
 from ..layer_utils import *
+from ..layers import *
 
 
-class FullyConnectedNet(object):
+class FullyConnectedNet:
     """Class for a multi-layer fully connected neural network.
 
     Network contains an arbitrary number of hidden layers, ReLU nonlinearities,
@@ -73,6 +73,18 @@ class FullyConnectedNet(object):
         # parameters should be initialized to zeros.                               #
         ############################################################################
 
+        layers_dims = [input_dim] + hidden_dims + [num_classes]
+
+        for i in range(self.num_layers):
+            self.params[f"W{i + 1}"] = weight_scale * np.random.randn(
+                layers_dims[i], layers_dims[i + 1]
+            )
+            self.params[f"b{i + 1}"] = np.zeros(layers_dims[i + 1])
+
+            if self.normalization is not None and i < self.num_layers - 1:
+                self.params[f"gamma{i + 1}"] = np.ones(layers_dims[i + 1])
+                self.params[f"beta{i + 1}"] = np.zeros(layers_dims[i + 1])
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -103,7 +115,7 @@ class FullyConnectedNet(object):
 
     def loss(self, X, y=None):
         """Compute loss and gradient for the fully connected net.
-        
+
         Inputs:
         - X: Array of input data of shape (N, d_1, ..., d_k)
         - y: Array of labels, of shape (N,). y[i] gives the label for X[i].
@@ -142,6 +154,44 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
+        caches = {}
+        out = X
+        for i in range(1, self.num_layers):  # L-1 layers
+            W = self.params[f"W{i}"]
+            b = self.params[f"b{i}"]
+
+            # affine
+            out, cache_affine = affine_forward(out, W, b)
+
+            # [batch/layer norm]
+            cache_norm = None
+            if self.normalization == "batchnorm":
+                gamma = self.params[f"gamma{i}"]
+                beta = self.params[f"beta{i}"]
+                out, cache_norm = batchnorm_forward(
+                    out, gamma, beta, self.bn_params[i - 1]
+                )
+            elif self.normalization == "layernorm":
+                gamma = self.params[f"gamma{i}"]
+                beta = self.params[f"beta{i}"]
+                out, cache_norm = layernorm_forward(
+                    out, gamma, beta, self.bn_params[i - 1]
+                )
+
+            # relu
+            out, cache_relu = relu_forward(out)
+
+            # [dropout]
+            cache_dropout = None
+            if self.use_dropout:
+                out, cache_dropout = dropout_forward(out, self.dropout_param)
+
+            caches[i] = [cache_affine, cache_norm, cache_relu, cache_dropout]
+
+        W_last = self.params[f"W{self.num_layers}"]
+        b_last = self.params[f"b{self.num_layers}"]
+
+        scores, caches[self.num_layers] = affine_forward(out, W_last, b_last)
 
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -165,6 +215,46 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
+        loss, dout = softmax_loss(scores, y)
+
+        # add l2 loss
+        for i in range(1, self.num_layers + 1):
+            W = self.params[f"W{i}"]
+            loss += 0.5 * self.reg * np.sum(W**2)
+
+        # calcute the grads of last layer
+        dout, dW, db = affine_backward(dout, caches[self.num_layers])
+        grads[f"W{self.num_layers}"] = (
+            dW + self.reg * self.params[f"W{self.num_layers}"]
+        )
+        grads[f"b{self.num_layers}"] = db
+
+        # calculate the grads in L-1 layers
+        for i in range(self.num_layers - 1, 0, -1):
+            cache_affine, cache_norm, cache_relu, cache_dropout = caches[i]
+
+            # dropout grads
+            if self.use_dropout:
+                dout = dropout_backward(dout, cache_dropout)
+
+            # relu grads
+            dout = relu_backward(dout, cache_relu)
+
+            # normalization grads
+            if self.normalization == "batchnorm":
+                dout, dgamma, dbeta = batchnorm_backward(dout, cache_norm)
+                grads[f"gamma{i}"] = dgamma
+                grads[f"beta{i}"] = dbeta
+            elif self.normalization == "layernorm":
+                dout, dgamma, dbeta = layernorm_backward(dout, cache_norm)
+                grads[f"gamma{i}"] = dgamma
+                grads[f"beta{i}"] = dbeta
+
+            # affine grads
+            dout, dW, db = affine_backward(dout, cache_affine)
+
+            grads[f"W{i}"] = dW + self.reg * self.params[f"W{i}"]
+            grads[f"b{i}"] = db
 
         ############################################################################
         #                             END OF YOUR CODE                             #
