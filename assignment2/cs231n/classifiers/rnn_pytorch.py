@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+
 from ..rnn_layers_pytorch import *
 
 
@@ -133,7 +134,7 @@ class CaptioningRNN:
         #     array of shape (N, T, V).                                            #
         # (5) Use (temporal) softmax to compute loss using captions_out, ignoring  #
         #     the points where the output word is <NULL> using the mask above.     #
-        #                                                                          #       
+        #                                                                          #
         # Please ensure that your implementation is agnostic of the input tensors  #
         # data types.                                                              #
         #                                                                          #
@@ -141,7 +142,16 @@ class CaptioningRNN:
         #                                                                          #
         # You also don't have to implement the backward pass.                      #
         ############################################################################
+        h0 = features @ W_proj + b_proj
+        wordvecs = word_embedding_forward(captions_in, W_embed)
 
+        if self.cell_type == "rnn":
+            h = rnn_forward(wordvecs, h0, Wx, Wh, b)
+        else:
+            h = lstm_forward(wordvecs, h0, Wx, Wh, b)
+
+        scores = temporal_affine_forward(h, W_vocab, b_vocab)
+        loss = temporal_softmax_loss(scores, captions_out, mask=mask)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -205,7 +215,23 @@ class CaptioningRNN:
         # NOTE: we are still working over minibatches in this function. Also if   #
         # you are using an LSTM, initialize the first cell state to zeros.        #
         ###########################################################################
+        h = features.mm(W_proj) + b_proj
+        prev_word = torch.full((N,), self._start, dtype=torch.long)
 
+        if self.cell_type == "lstm":
+            c = torch.zeros_like(h)
+
+        for t in range(max_length):
+            word_vec = W_embed[prev_word]
+
+            if self.cell_type == "rnn":
+                h = rnn_step_forward(word_vec, h, Wx, Wh, b)
+            elif self.cell_type == "lstm":
+                h, c = lstm_step_forward(word_vec, h, c, Wx, Wh, b)
+
+            scores = h.mm(W_vocab) + b_vocab
+            prev_word = torch.argmax(scores, dim=1)
+            captions[:, t] = prev_word
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
