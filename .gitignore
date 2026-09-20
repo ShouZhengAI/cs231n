@@ -2,3 +2,6 @@
 /assignment2/cs231n/datasets/*
 /assignment2/data/*
 /assignment3/cs231n/datasets/*
+/assignment3/cs231n/__pycache__/*
+/assignment3/cs231n/classifiers/__pycache__/*
+assignment3/data/*
