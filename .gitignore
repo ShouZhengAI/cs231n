@@ -4,4 +4,6 @@
 /assignment3/cs231n/datasets/*
 /assignment3/cs231n/__pycache__/*
 /assignment3/cs231n/classifiers/__pycache__/*
-assignment3/data/*
+/assignment3/data/*
+/assignment3/cs231n/simclr/__pycache__/*
+/assignment3/pretrained_model/*
